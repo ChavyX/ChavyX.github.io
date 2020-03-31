@@ -20,31 +20,27 @@
     <meta name="keywords" content="chavy,Chavy,chavy-blog">
     
     <meta name="description" content="">
-    <meta name="description" content="​    我写这篇文章主要想发表下自己对于编程语言的一点谬见，留下一些自己当下在编程方面对编程语言的一点感悟。 ​    说到编程语言，大家最为熟悉的莫过于C ， C++， Java， Python 这些，特别是 Python 在这几年一度翻身成为了最流行的编程语言之一，占据编程语言的排行榜前三的位置。为什么编程语言会有那么多种呢？它们是怎么出现的呢？它们有什么差别？又各有什么优势呢？ ​">
+    <meta name="description" content="我们知道，Redis的工作线程是单线程的，最新版的Redis 6.x 是多线程的，不过是I&#x2F;O多线程。 那为什么单线程的 Redis 它的速度能那么快呢？ 网上有列出了几个原因：  完全基于内存 数据结构简单，对数据操作也简单 采用单线程，避免了不必要的上下文切换和竞争条件，也不存在多进程或者多线程导致的切换而消耗 CPU，不用去考虑各种锁的问题，不存在加锁释放锁操作，没有因为可能出现死锁而导致的">
 <meta property="og:type" content="article">
-<meta property="og:title" content="我了解的Java">
-<meta property="og:url" content="http://chavyx.github.io/2020/03/29/%E6%88%91%E4%BA%86%E8%A7%A3%E7%9A%84Java/index.html">
+<meta property="og:title" content="浅析Redis的IO模型">
+<meta property="og:url" content="http://chavyx.github.io/2020/03/31/%E6%B5%85%E6%9E%90Redis%E7%9A%84IO%E6%A8%A1%E5%9E%8B/index.html">
 <meta property="og:site_name" content="Hexo">
-<meta property="og:description" content="​    我写这篇文章主要想发表下自己对于编程语言的一点谬见，留下一些自己当下在编程方面对编程语言的一点感悟。 ​    说到编程语言，大家最为熟悉的莫过于C ， C++， Java， Python 这些，特别是 Python 在这几年一度翻身成为了最流行的编程语言之一，占据编程语言的排行榜前三的位置。为什么编程语言会有那么多种呢？它们是怎么出现的呢？它们有什么差别？又各有什么优势呢？ ​">
+<meta property="og:description" content="我们知道，Redis的工作线程是单线程的，最新版的Redis 6.x 是多线程的，不过是I&#x2F;O多线程。 那为什么单线程的 Redis 它的速度能那么快呢？ 网上有列出了几个原因：  完全基于内存 数据结构简单，对数据操作也简单 采用单线程，避免了不必要的上下文切换和竞争条件，也不存在多进程或者多线程导致的切换而消耗 CPU，不用去考虑各种锁的问题，不存在加锁释放锁操作，没有因为可能出现死锁而导致的">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585494790/image-20200329202140259_ghfauf.png">
-<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585494791/image-20200329205822104_m341nz.png">
-<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585494790/image-20200329213507187_m2fbps.png">
-<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585494790/image-20200329210021458_rzqqvu.png">
-<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585494789/image-20200329213346508_xyb9wt.png">
-<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585494790/22dbb6f358cc4c46855442435ee4f0dc_x5rlsb.png">
-<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585494791/image-20200329221657216_s8wawd.png">
-<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585494790/image-20200329220039418_npdy33.png">
-<meta property="article:published_time" content="2020-03-29T15:02:38.000Z">
-<meta property="article:modified_time" content="2020-03-29T15:29:32.863Z">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585649482/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200331151918_ocu0b1.png">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585649483/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200331155946_zu4xjy.png">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585649483/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200331160303_voxzv2.png">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585649483/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200331174535_vgwupq.png">
+<meta property="article:published_time" content="2020-03-31T10:15:11.000Z">
+<meta property="article:modified_time" content="2020-03-31T10:15:39.906Z">
 <meta property="article:author" content="Chavy">
-<meta property="article:tag" content="闲谈">
+<meta property="article:tag" content="Redis">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://res.cloudinary.com/chavy/image/upload/v1585494790/image-20200329202140259_ghfauf.png">
+<meta name="twitter:image" content="https://res.cloudinary.com/chavy/image/upload/v1585649482/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200331151918_ocu0b1.png">
     <meta http-equiv="Cache-control" content="no-cache">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
     
-    <title>我了解的Java · Chavy Club</title>
+    <title>浅析Redis的IO模型 · Chavy Club</title>
     <style type="text/css">
     @font-face {
         font-family: 'Oswald-Regular';
@@ -239,7 +235,7 @@
                 <a href="/" >Chavy的菜鸟小站</a>
             </div>
             <div class="post-title">
-                <a href="#" class="post-name">我了解的Java</a>
+                <a href="#" class="post-name">浅析Redis的IO模型</a>
             </div>
     </div>
     
@@ -269,7 +265,7 @@ height:50vh;
         <h1 class="intro-title">
             <!-- 主页  -->
             
-            我了解的Java
+            浅析Redis的IO模型
             <!-- 404 -->
             
         </h1>
@@ -288,18 +284,18 @@ height:50vh;
                 
                     <div class= post-intro-tags >
     
-        <a class="post-tag" href="javascript:void(0);" data-tags = "闲谈">闲谈</a>
+        <a class="post-tag" href="javascript:void(0);" data-tags = "Redis">Redis</a>
     
 </div>
                 
                 
                     <div class="post-intro-read">
-                        <span>Word count: <span class="post-count word-count">2.7k</span>Reading time: <span class="post-count reading-time">9 min</span></span>
+                        <span>Word count: <span class="post-count word-count">2.5k</span>Reading time: <span class="post-count reading-time">8 min</span></span>
                     </div>
                 
                 <div class="post-intro-meta">
                     <span class="post-intro-calander iconfont-archer">&#xe676;</span>
-                    <span class="post-intro-time">2020/03/29</span>
+                    <span class="post-intro-time">2020/03/31</span>
                     
                     <span id="busuanzi_container_page_pv" class="busuanzi-pv">
                         <span class="iconfont-archer">&#xe602;</span>
@@ -423,65 +419,73 @@ height:50vh;
         <div class="container container-unloaded">
             <main class="main post-page">
     <article class="article-entry">
-        <p>​    我写这篇文章主要想发表下自己对于编程语言的一点谬见，留下一些自己当下在编程方面对编程语言的一点感悟。</p>
-<p>​    说到编程语言，大家最为熟悉的莫过于C ， C++， Java， Python 这些，特别是 Python 在这几年一度翻身成为了最流行的编程语言之一，占据编程语言的排行榜前三的位置。为什么编程语言会有那么多种呢？它们是怎么出现的呢？它们有什么差别？又各有什么优势呢？</p>
-<p>​    编程语言其实很早就已经出现在人们的视野之中了，1946年，世界上第一台通用电子计算机“ENIAC”在美国宾夕法尼亚大学诞生。随后直到1957年，IBM 开发出世界上的第一种高级编程语言 Fortran，从此进入高级语言编程的时代。Fortran 的出现改变了传统的人与计算机的交互方式，将人们从繁琐的劳动中解放出来，将大部分精力投入高级的思考中去，因此Fortran的出现具有划时代的意义。之后的许多语言都受到它的影响。</p>
-<p>​    <strong>Fortran语言的最大特性是接近数学公式的自然描述，在计算机里具有很高的执行效率。易学，语法严谨</strong>。它被广泛地应用于并行计算和高性能计算领域，自诞生以来占据了很长一段时间的优势。一直到1980年才被后来居上的Pascal打下编程语言第一的神坛位置。</p>
-<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585494790/image-20200329202140259_ghfauf.png" alt="我了解的Java"></p>
-<p>(图来自腾讯视频：1965~2019年最流行的编程语言变化)</p>
-<p>​    Pascal 发行于1970年，基于ALGOL，是一个有影响力的面向对象和面向过程编程语言，它的诞生是为了鼓励使用结构化编程和数据结构进行良好的编程实践。<strong>在高级语言发展过程种，Pascal是一个重要的里程碑。它具有丰富的数据结构和构造数据结构的方法，简明灵活的控制结构，以及编译运行效率高，严格的结构化形式等特点，使得Pascal语言可以被方便地用于描述各种算法与数据结构。</strong>而且Pascal其严谨的语法，奠定了一个良好的编程习惯标准，使得后来的编程学习者有了一个参考的先例。</p>
-<p>​    到了1985年左右，Pascal也保不住自己的神坛位置，被我们如今最广为人知的C语言抢占了第一的头衔。</p>
-<p>​    C语言，一种通用的面向过程的编程语言，于1969年至1973年间诞生于人间。<strong>C语言具有高效、灵活、功能丰富、表达力强和较高的可移植性等特点，备受程序员们青睐。</strong>其编译简易，能处理低端存储器但仍保持良好跨平台的特性，以及不需要任何运行环境支持便能运行的特点，一度让C语言成为仅25年来使用最为广泛的编程语言，其影响力持续至今且仍未退却。</p>
-<p>​    如今，我们的很多程序，以及操作系统都是由C语言来实现的。很多学校的第一门编程课就是C语言，作为当代编程的启蒙语言，它主要的优点就在于其入门简单，运行效率高，灵活性强。从我学习C语言到现在，我印象最深刻的就是C语言里面的一个特色，指针，甚有没学指针相当于没学过C语言的言论。而且在C语言之后，很多高级语言都是以C语言为基础的，在我们学习了C语言之后，再学习其他语言能更容易地上手，这也是C语言意义重大的一个方面。</p>
-<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585494791/image-20200329205822104_m341nz.png" alt></p>
-<p>(C语言独自一人战略了半壁江山)</p>
-<p>​    虽然但是，C语言在2001年左右，还是被拉下了神坛。在2016年8月份的TIOBE榜单的数据统计里，C语言市场占比甚至下降至11.303%。</p>
-<p>​    C语言下降的一个主要原因是，C语言不适合蓬勃发展的web和移动应用开发领域。此外，C语言不像其他大多数语言(如Java、C++和C#)，虽然其有一个“新”C11标准可用，但只做了微小的变化，C语言应该保持小而快的特点。此外，在其中添加一些C++的特性也没必要，因为C++早就有了，所以C语言的发展有些停滞。C语言发展遇瓶颈的另一个原因是没有大公司推动，Oracle支持Java，微软支持C++，C#和TypeScript，谷歌支持Java、Python、Go，Dart和JavaScript,苹果推动Swift和Objective-C等，但是没有一家大公司公开支持C。这些导致C语言的市场占比下滑剧烈。</p>
-<p>​        好啦，终于轮到Java了！想必说到Java，很多人印象最深刻的肯定就是……</p>
-<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585494790/image-20200329213507187_m2fbps.png" alt></p>
-<p><del>没错就是这杯卡布奇诺！</del>没错就是它！（<del>什么PHP，Java天下第一！</del>）</p>
-<p>​    从我接触Java到现在，也才过了一年半。Java不是当前最好，也不是最火的编程语言，但是它占据着整个市场不小的份额，主要归功于它很多优秀的特点和功能：</p>
+        <p>我们知道，Redis的工作线程是单线程的，最新版的Redis 6.x 是多线程的，不过是I/O多线程。</p>
+<p>那为什么单线程的 Redis 它的速度能那么快呢？</p>
+<p>网上有列出了几个原因：</p>
 <ul>
-<li>面向对象设计</li>
-<li>简单性</li>
-<li>可移植性与平台无关的特性</li>
-<li>高性能</li>
-<li>多线程</li>
-<li>解释执行</li>
-<li>健壮性</li>
-<li>安全性</li>
-<li>分布式</li>
+<li>完全基于内存</li>
+<li>数据结构简单，对数据操作也简单</li>
+<li>采用单线程，避免了不必要的上下文切换和竞争条件，也不存在多进程或者多线程导致的切换而消耗 CPU，不用去考虑各种锁的问题，不存在加锁释放锁操作，没有因为可能出现死锁而导致的性能消耗</li>
+<li>使用多路I/O复用模型，非阻塞IO</li>
+<li>底层模型不同</li>
 </ul>
-<p>​    Java是我接触的第一门面向对象的编程语言，也是我目前最喜欢的一门语言（因为我也不会别的hhhhh）。在Java编程学习的过程中，其本身JVM所带来的众多独特优势让编程变得更加简单容易，其强大的社区支持以及众多的框架，例如最经典的Spring系列，这些得天独厚的优势都使得Java开发者的编程变得十分便利。</p>
-<p>​    Java也是从2001年开始至2018年一直占领着最流行的程序语言榜首。但是Java的一些特点也不是它独有的，为什么偏偏就它能独占鳌头呢？主要原因还是在于过去的十几年里，互联网快速发展，电商发展迅速，互联网成为了一匹黑马，越来越多的人开始把经济发展的目光转向互联网。凭借这样的时代背景和经济趋势，web和移动应用开发成了最引人注目的领域，也正因如此，Java靠它JavaWeb开发以及分布式支持在这股浪潮里站稳了脚跟，且取得了很好的发展。</p>
-<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585494790/image-20200329210021458_rzqqvu.png" alt></p>
-<p>但终究时代还是在变迁，互联网即将不再是时代主流，人工智能领域，大数据，机器学习成为了未来的趋势，而事实也在证明，我们在慢慢朝着AI领域一步步靠近，且陆续取得了不错的成绩，开辟了很多先例。Python这门语言，也在AI浪潮的助推下，异军突起，在短短五年内，就挤下了C语言和PHP，并且在2018年打败了C语言和PHP都无法撼动的Java，成为最多人使用的编程语言。</p>
-<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585494789/image-20200329213346508_xyb9wt.png" alt></p>
-<p>（Python打败了Java，成为最多人使用的编程语言）</p>
-<p><strong>Python作为一门新兴的编程语言，机器学习、数据分析、数据处理、Web 开发、企业软件开发，甚至是拼接黑洞照片，Python 的影子无处不在，且在人工智能领域，Python已经远远超过了Java。</strong> 在著名的编程语言排行榜网站 TIOBE 上，Python 位居最流行编程语言第三位，仅次于 Java 和 C 语言。</p>
-<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585494790/22dbb6f358cc4c46855442435ee4f0dc_x5rlsb.png" alt></p>
-<p>（来源于HELLOGITHUB编程语言月报）</p>
-<p>​    且在2019年，Python 的流行度翻了一番（从 5% 到 10%）。有人预测Python的崛起将在2020年延续，并且缩短与Java和C语言之间的差距。为什么 Python 的势头会如此强劲？因为它的入手门槛低，有一个优秀的社区在支持，并受到数据科学家和新生代开发者的喜爱。</p>
-<p>​    但是对于Java来说，其在企业方面的应用已经十分广泛，微服务，分布式等近年十分火热，且也将会是未来趋势的领域，Java也是占据一个主导的位置。从上面的截图也可以看出，Java霸主的地位仍在，并将在 2020 年继续保持这种地位。</p>
-<p>​    JVM 是 Java 的基石，其他编程语言（如 Kotlin、Scala、Clojure、Groovy）也将 JVM 作为运行时。最近，Oracle 修改了 JVM 的许可协议。新的许可协议意味着使用 Java、Kotlin、Scala 或其他 JVM 编程语言的公司需要向 Oracle 支付大额费用。所幸的是，OpenJDK 让 JVM 继续免费。另外，还有其他一些公司为 JVM 提供企业支持。</p>
-<p>​    因为体积和速度方面的问题，基于 JVM 的编程语言并不适合用在今天的无服务器环境中。Oracle 正在推动 GraalVM 计划，旨在让 Java 变得更加敏捷和快速，让它更适合用在无服务器环境中。因为除了 Java，没有其他编程语言可以提供企业级的稳定性和可靠性，所以 Java 将在 2020 年继续占主导地位。</p>
-<p>​    此外，Java的地位也因为有者Spring这一巨头框架的存在。在企业开发领域，Spring有者不可替代的地位。而且Spring自出现到现在时间已经17年了，很多人可能认为Spring时间那么久了该淘汰了，但其实恰恰相反，在技术发展如此快速的现代，Spring能活那么久，说明它的实力和沉淀是值得被肯定的，也说明了Spring在未来仍然会是一个非常重要的存在。</p>
-<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585494791/image-20200329221657216_s8wawd.png" alt></p>
-<p>（2020年2月份编程语言走势图，来源于HELLOGITHUB编程语言月报）</p>
-<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585494790/image-20200329220039418_npdy33.png" alt></p>
-<p>（2020年2月份编程语言排行榜，来源于HELLOGITHUB编程语言月报）</p>
+<p>这里我们主要简单探讨下Redis的 I/O 模型，究竟是为什么能让它这么快？</p>
+<p>先抛结论：Redis 使用了 EPOLL 机制。</p>
+<h2 id="阻塞模型"><a href="#阻塞模型" class="headerlink" title="阻塞模型"></a>阻塞模型</h2><p>​    我们先来了解一下传统的IO模型。</p>
+<p>​    当一个服务端需要从内核读取数据的时候，这个过程是怎么样的？首先，服务端需要和内核建立通信，也就是要通过TCP和内核建立一个socket连接。这个过程需要经历 blind()，listen()，accept()，即与内核绑定，之后进入阻塞状态，直到有通知到来，再调用read()读取数据。</p>
+<p>​    为什么会有等待这个东西呢，因为在用户向 kernel 进行系统调用请求获取数据的时候，很多时候数据在一开始还没有到达（对于网络IO来说），这个时候 kernel 就需要等待足够的数据到来，也就是数据被拷贝到操作系统内核的缓冲区中的过程。而这个时候，服务端，即用户进程那边就会进入阻塞状态，直到 kernel 准备好了，它从就会将数据从kernel中拷贝到用户内存，然后kernel返回结果，用户进程才解除block的状态，重新运行起来。</p>
 <blockquote>
-<p>总结：其实没有绝对的强者和最强的编程语言，时代在进步，技术在发展，我们的目的总是为了更好的明天，学习更先进的技术。学习永不止境，也无边界，不应该说喜欢一种就膈应其他语言。所有语言都有其优点和优势，存在即意义。互相学习，才能更好的进步。</p>
+<p>这里有几个概念，Linux是内核，Redis是程序，系统OS即内核+程序。</p>
 </blockquote>
+<p>​    在 Linux 里，内核与程序之间通过 fd 来得知数据是否可用并读取数据。</p>
+<blockquote>
+<p>Linux里，一切皆文件，因此Linux给每个文件都分配了一个ID，这个ID叫做file description，即文件描述符，这里全部用 fd 缩写替代。</p>
+</blockquote>
+<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585649482/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200331151918_ocu0b1.png" alt="image-20200331151859367"></p>
+<p>​    如图所示，我先建立socket连接，此时内核传入了文件描述符 accpet( fd6 )，然后server端调用read( fd6 )进入阻塞等待状态，直到有数据可用了，server端便读到了数据并结束了这一轮的流程。</p>
+<p>​    但是这种模型有一个弊端，就是它是IO单线程的，要是我前一个 fd6 一直没有读到，该线程的状态就会一直处于阻塞的状态，后面的流程也无法继续进行，导致消耗的时间过长，性能就显得十分地慢。为了解决这个问题，多线程，非阻塞IO（即NIO）就出现了。</p>
+<h2 id="NIO"><a href="#NIO" class="headerlink" title="NIO"></a>NIO</h2><p>​    在Linux下，可以通过设置socket使其变为non-blocking，即当用户进程发出 read() 操作时，若 kernel 中的数据还没准备好，那么它不会 block 该用户进程，而是立刻返回一个error，于是用户进程可以判断到该数据还没准备好，那么它可以继续发送 read() 操作，而不会进入阻塞等待状态。</p>
+<p>​    NIO这种机制，它在server端做了一个优化，即实现了一个while() 循环。这个循环是干嘛的呢，当内核传入了一个文件描述符的时候，程序将这个文件描述符放入一个队列中，然后用一个while循环对所有的文件描述符进行遍历 read()，如果没有 read() 到数据，则跳过，读下一个，而不是阻塞进行等待。</p>
+<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585649483/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200331155946_zu4xjy.png" alt="微信截图_20200331155946"></p>
+<p>​    这种机制就是非阻塞IO，它不会出现传统IO模型中读不到数据就一直阻塞的情况，而是先读取下一个，待会再回头读取它。通俗的说就是我来你家敲门派糖，你不在，我先去下一家派糖，待会走完一轮了再回头继续敲门找刚才还没领到糖的人。这样实现相比于阻塞IO，省去了很多阻塞等待的时间，提高了性能，是不是很nice呢。</p>
+<blockquote>
+<p>所以，nonblocking IO的特点是用户进程需要不断的<strong>主动询问</strong> kernel 数据好了没有。</p>
+</blockquote>
+<p>​    但是有人又说了，万一我数据量非常大的时候，譬如我的数据量达到了10w，而且你每轮循环我都只有一个 fd 到达，那你岂不是得做10w次循环？u1s1，确实，在数据量非常大且最糟糕的情况下，仍然需要执行10w次系统调用，而且一轮循环浪费了9999次系统调用，read() 的复杂度达到了O(n)，这种情况是不容乐观的。</p>
+<h2 id="多路复用"><a href="#多路复用" class="headerlink" title="多路复用"></a>多路复用</h2><h3 id="select"><a href="#select" class="headerlink" title="select"></a>select</h3><p>​    于是为了解决上面那个问题，大牛们又想出了一个新的办法：既然我每次循环都会执行那么多次系统调用，而且可能存在大量的系统调用的浪费，那么为什么我不把循环这个工作交给内核去做呢？</p>
+<p>​    <img src="https://res.cloudinary.com/chavy/image/upload/v1585649483/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200331160303_voxzv2.png" alt="微信截图_20200331160303"></p>
+<p>​    然后他就真这么做了，它通过一个 <strong>select()</strong> 方法，将内核传入的所有文件描述符都交给内核，让内核去循环遍历。每次将有数据可用的对应的文件描述符再返回给server端，server端就对这些文件描述符进行 read() 操作。这种机制就叫做多路复用。</p>
+<p>​    这样做将原来 O(n) 的 read() 时间复杂度缩到了 O(1)，并且将程序与内核之间的切换，也就是系统调用，从10w次变成了一次。这样一来，系统调用造成的浪费和切换的性能消耗就大大降低了。性能也再次有所提升。</p>
+<p>​    select 的原理是：当用户进程调用了select() ，整个进程会被 block，同时，kernel 会监视所有 select 负责的socket，当任何一个 socket 中的数据准备好了，select就会返回。这个时候用户进程再调用read操作，将数据从kernel拷贝到用户进程。</p>
+<blockquote>
+<p>select目前几乎在所有的平台上支持，其良好跨平台支持也是它的一个优点。select的一 个缺点在于单个进程能够监视的文件描述符的数量存在最大限制，在Linux上一般为1024，可以通过修改宏定义甚至重新编译内核的方式提升这一限制，但 是这样也会造成效率的降低。</p>
+</blockquote>
+<h3 id="poll"><a href="#poll" class="headerlink" title="poll"></a>poll</h3><p>​    poll的实现原理于 select 类似，区别是 poll 不再使用select“参数-值”传递的方式。同时，poll 并没有最大数量限制（但是数量过大后性能也是会下降）</p>
+<h3 id="epoll"><a href="#epoll" class="headerlink" title="epoll"></a>epoll</h3><p>​    后来大佬们还是不满意，觉得不管是用户进程还是内核都需要做很多次遍历，为什么就不能不做这些遍历呢？于是乎，epoll出现了。</p>
+<p>​    epoll是啥玩意呢？epoll 的核心在于三个调用，分别是 epoll_create()，epoll_ctl()，epoll_wait() 。</p>
+<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585649483/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200331174535_vgwupq.png" alt="微信截图_20200331174535"></p>
+<p>​    例如上图，在这种机制下，程序会先在内核里调用 epoll_create()，该调用会在内核里开辟一个用于存放事件的空间。之后程序调用 epoll_ctl()，在之前的空间里存入事件，譬如我存入了个 fd6 等待调用accept() 的事件。之后程序就会向内核不断调用 epoll_wait()，直到内核有数据到达了，该数据就会放入另一个空间里，由 epoll_wait() 将数据带回程序。</p>
+<p>​    Redis 的实现就是使用的这种 EPOLL 机制加 NIO。</p>
+<blockquote>
+<p>epoll是在2.6内核中提出的，是之前的select和poll的增强版本。相对于select和poll来说，epoll更加灵活，没有描述符限制。epoll使用一个文件描述符管理多个描述符，将用户关系的文件描述符的事件存放到内核的一个事件表中，这样在用户空间和内核空间的copy只需一次。</p>
+</blockquote>
+<p>​    EPOLL机制的出现，使得循环调用的浪费问题也被解决了，性能大大提高。</p>
+<p>​    以上的机制又被称作 event driven IO，即事件驱动IO，其和事件机制以及CPU的中断机制一样，使用了一个事件队列，用于存储未能及时处理的事件，然后再通过主动询问来处理并获得返回结果。</p>
+<p>​    对于EPOLL，其实还有很多更深层次的知识点，如EPOLL的两种工作模式 ET（边缘触发模式）和 LT（水平触发模式）等等，这些都是支撑了为什么 Redis 速度那么快的原因，这里就不再深入探究了（因为我还没这个水平），有兴趣可以自己找下资料。</p>
+<h2 id="异步-I-O"><a href="#异步-I-O" class="headerlink" title="异步 I/O"></a>异步 I/O</h2><p>​    以上说的几种模型都是同步 I/O，但其实还有一种异步 I/O 模型，不过在Linux下这种模型用得不多，这里就简单带过。</p>
+<p>​    用户进程发起read操作之后，立刻就可以开始去做其它的事。而另一方面，从kernel的角度，当它受到一个asynchronous read之后，首先它会立刻返回，所以不会对用户进程产生任何block。然后，kernel会等待数据准备完成，然后将数据拷贝到用户内存，当这一切都完成之后，kernel会给用户进程发送一个signal，告诉它read操作完成了。</p>
+<p>参考资料：</p>
+<p><a href="https://segmentfault.com/a/1190000003063859#item-2-9" target="_blank" rel="noopener">《Linux IO模式及 select、poll、epoll详解》</a></p>
+<p><a href="https://blog.csdn.net/xlgen157387/article/details/79470556?depth_1-utm_source=distribute.pc_relevant.none-task&utm_source=distribute.pc_relevant.none-task" target="_blank" rel="noopener">《为什么说Redis是单线程的以及Redis为什么这么快》</a></p>
 
     </article>
     <!-- license  -->
     
         <div class="license-wrapper">
             <p>Author：<a href="http://ChavyX.github.io">Chavy</a>
-            <p>原文链接：<a href="http://chavyx.github.io/2020/03/29/%E6%88%91%E4%BA%86%E8%A7%A3%E7%9A%84Java/">http://chavyx.github.io/2020/03/29/%E6%88%91%E4%BA%86%E8%A7%A3%E7%9A%84Java/</a>
-            <p>发表日期：<a href="http://chavyx.github.io/2020/03/29/%E6%88%91%E4%BA%86%E8%A7%A3%E7%9A%84Java/">March 29th 2020, 11:02:38 pm</a>
-            <p>更新日期：<a href="http://chavyx.github.io/2020/03/29/%E6%88%91%E4%BA%86%E8%A7%A3%E7%9A%84Java/">March 29th 2020, 11:29:32 pm</a>
+            <p>原文链接：<a href="http://chavyx.github.io/2020/03/31/%E6%B5%85%E6%9E%90Redis%E7%9A%84IO%E6%A8%A1%E5%9E%8B/">http://chavyx.github.io/2020/03/31/%E6%B5%85%E6%9E%90Redis%E7%9A%84IO%E6%A8%A1%E5%9E%8B/</a>
+            <p>发表日期：<a href="http://chavyx.github.io/2020/03/31/%E6%B5%85%E6%9E%90Redis%E7%9A%84IO%E6%A8%A1%E5%9E%8B/">March 31st 2020, 6:15:11 pm</a>
+            <p>更新日期：<a href="http://chavyx.github.io/2020/03/31/%E6%B5%85%E6%9E%90Redis%E7%9A%84IO%E6%A8%A1%E5%9E%8B/">March 31st 2020, 6:15:39 pm</a>
             <p>版权声明：本文版权属于作者，未授权禁止商用</p>
         </div>
     
@@ -489,13 +493,13 @@ height:50vh;
     <ul class="post-paginator">
         <li class="next">
             
-                <div class="nextSlogan">Next Post</div>
-                <a href= "/2020/03/31/%E6%B5%85%E6%9E%90Redis%E7%9A%84IO%E6%A8%A1%E5%9E%8B/" title= "浅析Redis的IO模型">
-                    <div class="nextTitle">浅析Redis的IO模型</div>
-                </a>
-            
         </li>
         <li class="previous">
+            
+                <div class="prevSlogan">Previous Post</div>
+                <a href= "/2020/03/29/%E6%88%91%E4%BA%86%E8%A7%A3%E7%9A%84Java/" title= "我了解的Java">
+                    <div class="prevTitle">我了解的Java</div>
+                </a>
             
         </li>
     </ul>
@@ -629,7 +633,7 @@ top:50vh;
         <div class="toc-catalog">
             <span class="iconfont-archer catalog-icon">&#xe613;</span><span>CATALOG</span>
         </div>
-        
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#阻塞模型"><span class="toc-number">1.</span> <span class="toc-text">阻塞模型</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#NIO"><span class="toc-number">2.</span> <span class="toc-text">NIO</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#多路复用"><span class="toc-number">3.</span> <span class="toc-text">多路复用</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#select"><span class="toc-number">3.1.</span> <span class="toc-text">select</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#poll"><span class="toc-number">3.2.</span> <span class="toc-text">poll</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#epoll"><span class="toc-number">3.3.</span> <span class="toc-text">epoll</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#异步-I-O"><span class="toc-number">4.</span> <span class="toc-text">异步 I&#x2F;O</span></a></li></ol>
     </div>
     
     <div class="back-top iconfont-archer">&#xe639;</div>

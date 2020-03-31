@@ -367,6 +367,41 @@ height:50vh;
     
     
     <article class="index-post">
+        <a class="abstract-title" href = "/2020/03/31/%E6%B5%85%E6%9E%90Redis%E7%9A%84IO%E6%A8%A1%E5%9E%8B/" >
+            
+                <span>浅析Redis的IO模型</span>
+        </a>
+        <div class="abstract-content">
+            我们知道，Redis的工作线程是单线程的，最新版的Redis 6.x 是多线程的，不过是I/O多线程。
+那为什么单线程的 Redis 它的速度能那么快呢？
+网上有列出了几个原因：
+
+完全基于内存
+数据结构简单，对数据操作也简单
+采用单线程，避免了不必要的上下文切换和竞争条件，也不存在多进程或者多线程导致的切换而消耗 CPU，不用去考虑各种锁的问题，不存在加锁释放锁操作，没有因为可能出现死锁而...
+        </div>
+        <div class="abstract-post-meta">
+            <!-- date  -->
+            <div class="abstract-date">
+                <span class="abstract-calander iconfont-archer">&#xe676;</span><span class="abstract-time">2020/03/31</span>
+            </div>
+            <!-- tags  -->
+            
+            <div class= abstract-tags >
+    
+        <a class="post-tag" href="javascript:void(0);" data-tags = "Redis">Redis</a>
+    
+</div>
+            
+        </div>
+    </article>
+    
+    
+    
+    
+    
+    
+    <article class="index-post">
         <a class="abstract-title" href = "/2020/03/29/%E6%88%91%E4%BA%86%E8%A7%A3%E7%9A%84Java/" >
             
                 <span>我了解的Java</span>
@@ -583,9 +618,16 @@ height:50vh;
     
     
     
+    
+    
+    
+    
+    
+    
+    
     <div class="total-and-search">
         <div class="total-archive">
-        Total : 1
+        Total : 2
         </div>
         <!-- search  -->
         
@@ -601,6 +643,11 @@ height:50vh;
     
     
         <li class="archive-post-item">
+            <span class="archive-post-date">03/31</span><a class="archive-post-title" href= "/2020/03/31/%E6%B5%85%E6%9E%90Redis%E7%9A%84IO%E6%A8%A1%E5%9E%8B/" >浅析Redis的IO模型</a>
+        </li>
+    
+    
+        <li class="archive-post-item">
             <span class="archive-post-date">03/29</span><a class="archive-post-title" href= "/2020/03/29/%E6%88%91%E4%BA%86%E8%A7%A3%E7%9A%84Java/" >我了解的Java</a>
         </li>
     
@@ -610,6 +657,8 @@ height:50vh;
     <div class="sidebar-tags-name">
     
         <span class="sidebar-tag-name" data-tags="闲谈"><span class="iconfont-archer">&#xe606;</span>闲谈</span>
+    
+        <span class="sidebar-tag-name" data-tags="Redis"><span class="iconfont-archer">&#xe606;</span>Redis</span>
     
     </div>
     <div class="iconfont-archer sidebar-tags-empty">&#xe678;</div>

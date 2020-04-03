@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+    <!-- title -->
+
+
+
+
+<!-- keywords -->
+
+
+
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" >
+    <meta name="author" content="Chavy">
+    <meta name="renderer" content="webkit">
+    <meta name="copyright" content="Chavy">
+    
+    <meta name="keywords" content="chavy,Chavy,chavy-blog">
+    
+    <meta name="description" content="">
+    <meta name="description" content="今天的笔记是关于线程和并发的，拿好小板凳。 ​    相信在学线程和并发的时候，我们都知道了同步的概念和怎么样实现同步的方法。在进行并发编程的时候，我们需要保证一些业务的线程安全以避免数据丢失或不一致等问题（譬如银行拿钱），而保证线程安全就需要做到同步，我们来复习下几个实现同步机制的方法：  锁对象：在 Java5 引入的 java.util.concurrent.locks 中的显示互斥锁：L">
+<meta property="og:type" content="article">
+<meta property="og:title" content="浅析synchronized原理">
+<meta property="og:url" content="http://chavyx.github.io/2020/04/03/%E6%B5%85%E6%9E%90synchronized%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="今天的笔记是关于线程和并发的，拿好小板凳。 ​    相信在学线程和并发的时候，我们都知道了同步的概念和怎么样实现同步的方法。在进行并发编程的时候，我们需要保证一些业务的线程安全以避免数据丢失或不一致等问题（譬如银行拿钱），而保证线程安全就需要做到同步，我们来复习下几个实现同步机制的方法：  锁对象：在 Java5 引入的 java.util.concurrent.locks 中的显示互斥锁：L">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585925931/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403225835_vwpi2d.png">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585925792/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20200403220024_rkyjsj.png">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403222817_yzicd8.png">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223619_laxi78.png">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223636_qdjqvw.png">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223654_p8svhe.png">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223711_ph2uki.png">
+<meta property="og:image" content="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223725_tf4nef.png">
+<meta property="article:published_time" content="2020-04-03T15:03:37.000Z">
+<meta property="article:modified_time" content="2020-04-03T15:07:18.312Z">
+<meta property="article:author" content="Chavy">
+<meta property="article:tag" content="并发">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://res.cloudinary.com/chavy/image/upload/v1585925931/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403225835_vwpi2d.png">
+    <meta http-equiv="Cache-control" content="no-cache">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+    
+    <title>浅析synchronized原理 · Chavy Club</title>
+    <style type="text/css">
+    @font-face {
+        font-family: 'Oswald-Regular';
+        src: url("/font/Oswald-Regular.ttf");
+    }
+
+    body {
+        margin: 0;
+    }
+
+    header,
+    footer,
+    .back-top,
+    .sidebar,
+    .container,
+    .site-intro-meta,
+    .toc-wrapper {
+        display: none;
+    }
+
+    .site-intro {
+        position: relative;
+        z-index: 3;
+        width: 100%;
+        /* height: 50vh; */
+        overflow: hidden;
+    }
+
+    .site-intro-placeholder {
+        position: absolute;
+        z-index: -2;
+        top: 0;
+        left: 0;
+        width: calc(100% + 300px);
+        height: 100%;
+        background: repeating-linear-gradient(-45deg, #444 0, #444 80px, #333 80px, #333 160px);
+        background-position: center center;
+        transform: translate3d(-226px, 0, 0);
+        animation: gradient-move 2.5s ease-out 0s infinite;
+    }
+
+    @keyframes gradient-move {
+        0% {
+            transform: translate3d(-226px, 0, 0);
+        }
+        100% {
+            transform: translate3d(0, 0, 0);
+        }
+    }
+
+</style>
+
+    <link rel="preload" href= "/css/style.css?v=20180824" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <link rel="stylesheet" href= "/css/mobile.css?v=20180824" media="(max-width: 980px)">
+    
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.2.5/jquery.fancybox.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    
+    <!-- /*! loadCSS. [c]2017 Filament Group, Inc. MIT License */
+/* This file is meant as a standalone workflow for
+- testing support for link[rel=preload]
+- enabling async CSS loading in browsers that do not support rel=preload
+- applying rel preload css once loaded, whether supported or not.
+*/ -->
+<script>
+(function( w ){
+	"use strict";
+	// rel=preload support test
+	if( !w.loadCSS ){
+		w.loadCSS = function(){};
+	}
+	// define on the loadCSS obj
+	var rp = loadCSS.relpreload = {};
+	// rel=preload feature support test
+	// runs once and returns a function for compat purposes
+	rp.support = (function(){
+		var ret;
+		try {
+			ret = w.document.createElement( "link" ).relList.supports( "preload" );
+		} catch (e) {
+			ret = false;
+		}
+		return function(){
+			return ret;
+		};
+	})();
+
+	// if preload isn't supported, get an asynchronous load by using a non-matching media attribute
+	// then change that media back to its intended value on load
+	rp.bindMediaToggle = function( link ){
+		// remember existing media attr for ultimate state, or default to 'all'
+		var finalMedia = link.media || "all";
+
+		function enableStylesheet(){
+			link.media = finalMedia;
+		}
+
+		// bind load handlers to enable media
+		if( link.addEventListener ){
+			link.addEventListener( "load", enableStylesheet );
+		} else if( link.attachEvent ){
+			link.attachEvent( "onload", enableStylesheet );
+		}
+
+		// Set rel and non-applicable media type to start an async request
+		// note: timeout allows this to happen async to let rendering continue in IE
+		setTimeout(function(){
+			link.rel = "stylesheet";
+			link.media = "only x";
+		});
+		// also enable media after 3 seconds,
+		// which will catch very old browsers (android 2.x, old firefox) that don't support onload on link
+		setTimeout( enableStylesheet, 3000 );
+	};
+
+	// loop through link elements in DOM
+	rp.poly = function(){
+		// double check this to prevent external calls from running
+		if( rp.support() ){
+			return;
+		}
+		var links = w.document.getElementsByTagName( "link" );
+		for( var i = 0; i < links.length; i++ ){
+			var link = links[ i ];
+			// qualify links to those with rel=preload and as=style attrs
+			if( link.rel === "preload" && link.getAttribute( "as" ) === "style" && !link.getAttribute( "data-loadcss" ) ){
+				// prevent rerunning on link
+				link.setAttribute( "data-loadcss", true );
+				// bind listeners to toggle media back
+				rp.bindMediaToggle( link );
+			}
+		}
+	};
+
+	// if unsupported, run the polyfill
+	if( !rp.support() ){
+		// run once at least
+		rp.poly();
+
+		// rerun poly on an interval until onload
+		var run = w.setInterval( rp.poly, 500 );
+		if( w.addEventListener ){
+			w.addEventListener( "load", function(){
+				rp.poly();
+				w.clearInterval( run );
+			} );
+		} else if( w.attachEvent ){
+			w.attachEvent( "onload", function(){
+				rp.poly();
+				w.clearInterval( run );
+			} );
+		}
+	}
+
+
+	// commonjs
+	if( typeof exports !== "undefined" ){
+		exports.loadCSS = loadCSS;
+	}
+	else {
+		w.loadCSS = loadCSS;
+	}
+}( typeof global !== "undefined" ? global : this ) );
+</script>
+
+    <link rel="icon" href= "/assets/duck.ico" />
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/webfontloader@1.6.28/webfontloader.min.js" as="script" />
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js" as="script" />
+    <link rel="preload" href="/scripts/main.js" as="script" />
+    <link rel="preload" as="font" href="/font/Oswald-Regular.ttf" crossorigin>
+    <link rel="preload" as="font" href="https://at.alicdn.com/t/font_327081_1dta1rlogw17zaor.woff" crossorigin>
+    
+    <!-- fancybox -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.2.5/jquery.fancybox.min.js" defer></script>
+    <!-- 百度统计  -->
+    
+    <!-- 谷歌统计  -->
+    
+<meta name="generator" content="Hexo 4.2.0"></head>
+
+    
+        <body class="post-body">
+    
+    
+<header class="header">
+
+    <div class="read-progress"></div>
+    <div class="header-sidebar-menu">&#xe775;</div>
+    <!-- post页的toggle banner  -->
+    
+    <div class="banner">
+            <div class="blog-title">
+                <a href="/" >Chavy的菜鸟小站</a>
+            </div>
+            <div class="post-title">
+                <a href="#" class="post-name">浅析synchronized原理</a>
+            </div>
+    </div>
+    
+    <a class="home-link" href=/>Chavy的菜鸟小站</a>
+</header>
+    <div class="wrapper">
+        <div class="site-intro" style="
+
+
+
+
+
+
+
+height:50vh;
+">
+    
+    <!-- 主页  -->
+    
+    
+    <!-- 404页  -->
+            
+    <div class="site-intro-placeholder"></div>
+    <div class="site-intro-img" style="background-image: url(/intro/632051.png)"></div>
+    <div class="site-intro-meta">
+        <!-- 标题  -->
+        <h1 class="intro-title">
+            <!-- 主页  -->
+            
+            浅析synchronized原理
+            <!-- 404 -->
+            
+        </h1>
+        <!-- 副标题 -->
+        <p class="intro-subtitle">
+            <!-- 主页副标题  -->
+            
+            
+            <!-- 404 -->
+            
+        </p>
+        <!-- 文章页meta -->
+        
+            <div class="post-intros">
+                <!-- 文章页标签  -->
+                
+                    <div class= post-intro-tags >
+    
+        <a class="post-tag" href="javascript:void(0);" data-tags = "并发">并发</a>
+    
+</div>
+                
+                
+                    <div class="post-intro-read">
+                        <span>Word count: <span class="post-count word-count">3k</span>Reading time: <span class="post-count reading-time">10 min</span></span>
+                    </div>
+                
+                <div class="post-intro-meta">
+                    <span class="post-intro-calander iconfont-archer">&#xe676;</span>
+                    <span class="post-intro-time">2020/04/03</span>
+                    
+                    <span id="busuanzi_container_page_pv" class="busuanzi-pv">
+                        <span class="iconfont-archer">&#xe602;</span>
+                        <span id="busuanzi_value_page_pv"></span>
+                    </span>
+                    
+                    <span class="shareWrapper">
+                        <span class="iconfont-archer shareIcon">&#xe71d;</span>
+                        <span class="shareText">Share</span>
+                        <ul class="shareList">
+                            <li class="iconfont-archer share-qr" data-type="qr">&#xe75b;
+                                <div class="share-qrcode"></div>
+                            </li>
+                            <li class="iconfont-archer" data-type="weibo">&#xe619;</li>
+                            <li class="iconfont-archer" data-type="qzone">&#xe62e;</li>
+                            <li class="iconfont-archer" data-type="twitter">&#xe634;</li>
+                            <li class="iconfont-archer" data-type="facebook">&#xe67a;</li>
+                        </ul>
+                    </span>
+                </div>
+            </div>
+        
+    </div>
+</div>
+        <script>
+ 
+  // get user agent
+  var browser = {
+    versions: function () {
+      var u = window.navigator.userAgent;
+      return {
+        userAgent: u,
+        trident: u.indexOf('Trident') > -1, //IE内核
+        presto: u.indexOf('Presto') > -1, //opera内核
+        webKit: u.indexOf('AppleWebKit') > -1, //苹果、谷歌内核
+        gecko: u.indexOf('Gecko') > -1 && u.indexOf('KHTML') == -1, //火狐内核
+        mobile: !!u.match(/AppleWebKit.*Mobile.*/), //是否为移动终端
+        ios: !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/), //ios终端
+        android: u.indexOf('Android') > -1 || u.indexOf('Linux') > -1, //android终端或者uc浏览器
+        iPhone: u.indexOf('iPhone') > -1 || u.indexOf('Mac') > -1, //是否为iPhone或者安卓QQ浏览器
+        iPad: u.indexOf('iPad') > -1, //是否为iPad
+        webApp: u.indexOf('Safari') == -1, //是否为web应用程序，没有头部与底部
+        weixin: u.indexOf('MicroMessenger') == -1, //是否为微信浏览器
+        uc: u.indexOf('UCBrowser') > -1 //是否为android下的UC浏览器
+      };
+    }()
+  }
+  console.log("userAgent:" + browser.versions.userAgent);
+
+  // callback
+  function fontLoaded() {
+    console.log('font loaded');
+    if (document.getElementsByClassName('site-intro-meta')) {
+      document.getElementsByClassName('intro-title')[0].classList.add('intro-fade-in');
+      document.getElementsByClassName('intro-subtitle')[0].classList.add('intro-fade-in');
+      var postIntros = document.getElementsByClassName('post-intros')[0]
+      if (postIntros) {
+        postIntros.classList.add('post-fade-in');
+      }
+    }
+  }
+
+  // UC不支持跨域，所以直接显示
+  function asyncCb(){
+    if (browser.versions.uc) {
+      console.log("UCBrowser");
+      fontLoaded();
+    } else {
+      WebFont.load({
+        custom: {
+          families: ['Oswald-Regular']
+        },
+        loading: function () {  //所有字体开始加载
+          // console.log('loading');
+        },
+        active: function () {  //所有字体已渲染
+          fontLoaded();
+        },
+        inactive: function () { //字体预加载失败，无效字体或浏览器不支持加载
+          console.log('inactive: timeout');
+          fontLoaded();
+        },
+        timeout: 5000 // Set the timeout to two seconds
+      });
+    }
+  }
+
+  function asyncErr(){
+    console.warn('script load from CDN failed, will load local script')
+  }
+
+  // load webfont-loader async, and add callback function
+  function async(u, cb, err) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (cb) { o.addEventListener('load', function (e) { cb(null, e); }, false); }
+    if (err) { o.addEventListener('error', function (e) { err(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+
+  var asyncLoadWithFallBack = function(arr, success, reject) {
+      var currReject = function(){
+        reject()
+        arr.shift()
+        if(arr.length)
+          async(arr[0], success, currReject)
+        }
+
+      async(arr[0], success, currReject)
+  }
+
+  asyncLoadWithFallBack([
+    "https://cdn.jsdelivr.net/npm/webfontloader@1.6.28/webfontloader.min.js", 
+    "https://cdn.bootcss.com/webfont/1.6.28/webfontloader.js",
+    "/lib/webfontloader.min.js"
+  ], asyncCb, asyncErr)
+</script>        
+        <img class="loading" src="/assets/loading.svg" style="display: block; margin: 6rem auto 0 auto; width: 6rem; height: 6rem;" />
+        <div class="container container-unloaded">
+            <main class="main post-page">
+    <article class="article-entry">
+        <p><img src="https://res.cloudinary.com/chavy/image/upload/v1585925931/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403225835_vwpi2d.png" alt="https://res.cloudinary.com/chavy/image/upload/v1585925931/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403225835_vwpi2d.png"></p>
+<p>今天的笔记是关于线程和并发的，拿好小板凳。</p>
+<p>​    相信在学线程和并发的时候，我们都知道了同步的概念和怎么样实现同步的方法。在进行并发编程的时候，我们需要保证一些业务的线程安全以避免数据丢失或不一致等问题（譬如银行拿钱），而保证线程安全就需要做到同步，我们来复习下几个实现同步机制的方法：</p>
+<ul>
+<li>锁对象：在 Java5 引入的 <code>java.util.concurrent.locks</code> 中的显示互斥锁：Lock 接口</li>
+<li><code>synchronized</code> 关键字</li>
+<li><code>volatile</code> 关键字</li>
+</ul>
+<p>上面这3点如果不清楚的这里就不再重复了，可以自行去学习学习。</p>
+<p>这里主要简单介绍下和 synchronized 关键字息息相关的 —— Monitor 机制和锁升级。</p>
+<h2 id="Monitor-机制"><a href="#Monitor-机制" class="headerlink" title="Monitor 机制"></a>Monitor 机制</h2><h3 id="简述"><a href="#简述" class="headerlink" title="简述"></a>简述</h3><p>​    <strong>管程，英文是 Monitor，也被翻译成“监视者”，它是一个在操作系统层面的概念。它是一种同步工具或者说是同步机制。</strong></p>
+<p>​    我们知道，在操作系统中介绍进程/线程间同步的时候，我们学到了一个 semaphore 信号量和 mutex 互斥量的同步原语，我们可以通过这种同步原语，或者说这种机制，来比较方便的实现我们的进程/线程同步。但是，在使用这种同步原语进行并发控制的时候，不知道你会不会感觉到控制 mutex 的 PV 操作时需要非常小心，否则很容易引起死锁的问题。于是，为了更加简单容易的进行并发编程，就提出了更高层次的同步原语 Monitor。</p>
+<blockquote>
+<p>操作系统本身不支持 monitor 机制，它是属于编程语言的范畴，是编程语言在语法上提供的语法糖。</p>
+</blockquote>
+<p>​    Monitor 这种机制也是基于 semaphore 和 mutex实现的，它有几个基本元素：</p>
+<ul>
+<li>临界区</li>
+<li>Monitor 对象及锁</li>
+<li>条件变量以及定义在 Monitor 对象上的 wait，signal 操作</li>
+</ul>
+<p><strong>临界区：</strong></p>
+<p>​    Monitor 定义了一个临界区，在临界区里，每次有且仅有一个进程/线程进入并执行临界区内的操作，从而达到互斥的效果。</p>
+<p><strong>Monitor 对象及锁：</strong></p>
+<p>​    Monitor 对临界区外的进程/线程进行了阻塞，此时需要一个 Monitor Object 来协助此操作。该 Monitor Object 内部会有相应的数据结构，例如列表，来保存被阻塞的线程；同时 Monitor 机制本质上是基于 mutex 的，所以 Monitor Object 还必须维护一个基于 mutex 的锁。</p>
+<p><strong>条件：</strong></p>
+<p>​    作为一个同步工具或者说机制，它肯定需要提供管理进程/线程状态的机制，使得满足某个监视条件的进程/线程能够解除阻塞重新获得运行许可。因此需要引入一个条件变量，用来决定什么时候唤醒什么线程，这个条件可以来自程序代码的逻辑，也可以是在 Monitor Object 内部。由于 monitor object 内部采用了数据结构来保存被阻塞的队列，因此它也必须对外提供两个 API 来让线程进入阻塞状态以及之后被唤醒，分别是 wait 和 notify。</p>
+<h3 id="Java-对-Monitor的支持"><a href="#Java-对-Monitor的支持" class="headerlink" title="Java 对 Monitor的支持"></a>Java 对 Monitor的支持</h3><p>​    <strong>在上面我们提到的 synchronized 关键字的底层就是基于 Monitor 机制。</strong></p>
+<p>​    我们先来写一个简单的 synchronized 代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Client</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> Object object = <span class="keyword">new</span> Object();</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">synchronized</span> (object)&#123;</span><br><span class="line">            System.out.println(<span class="string">"haha"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>​    通过 <code>javap -v</code> 来查看使用了 synchronized 的代码的字节码指令：</p>
+<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585925792/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20200403220024_rkyjsj.png" alt="image-20200403220122702"></p>
+<p>​    在上图我们可以看到，对于同步块的实现使用了 <code>monitorenter</code>指令和<code>monitorexit</code> 指令，它们隐式的执行了加锁和解锁的操作，用于提供原子性保护。 <code>monitorenter</code> 指令插入到同步代码块开始的位置、<code>monitorexit</code> 指令插入到同步代码块结束位置，JVM 需要保证每个 <code>monitorenter</code> 都有一个 <code>monitorexit</code> 对应。</p>
+<p>​    在 Java 里，一个 Object 对象就是一个 Monitor 对象，而被 synchronized 关键字修饰的代码块、方法就是 Monitor 的临界区。</p>
+<p>​    在 Object 类里也提供了 wait()，notify()方法（此方法是native本地方法），这些就是上面提到的 Monitor 机制中的用于管理线程的方法。</p>
+<p>​    当一个线程需要获取 Object 锁时，会被放入 EntrySet 中进行等待，如果该线程获取到了锁，成为当前锁的 owner。当一个获得锁的线程缺少某些外部条件，而无法继续进行下去时（如生产者消费者模型中生产者发现仓库满了），那么该线程可以调用 wait()方法释放锁，进入 waitSet 中阻塞等待，其他线程有机会获得锁，去做其他事，使得之前的外部条件成立（消费者消费了产品，仓库不满），这样先前被阻塞的线程可以重新进入 EntrySet 去竞争锁。这个外部条件在 monitor 机制中称为条件变量。</p>
+<h2 id="锁升级"><a href="#锁升级" class="headerlink" title="锁升级"></a>锁升级</h2><p>​    在 jdk 早期的时候，synchronized 底层的实现是重量级的。有多重呢？重量级到这个 synchronized 是要去找操作系统，找内核去申请锁的地步，这就会造成 synchronized 效率非常低。于是后来 Java 开始处理高并发程序的时候，这样的重量级锁使得很多人不满意，于是 Java 后来就进行了改进，就出现了锁升级的概念。</p>
+<p>​    介绍锁升级的时候先简单介绍下对象头的概念（<del>就是你对象的头，噢你没有对象啊，那打扰了</del>）</p>
+<h3 id="对象头"><a href="#对象头" class="headerlink" title="对象头"></a>对象头</h3><p>​    在 HotSpot 虚拟机中，对象在内存中存储的布局可以分为三块区域：</p>
+<ul>
+<li><strong>对象头（Header）</strong></li>
+<li><strong>实例数据（Instance Data）</strong>：对象的实例数据就是在java代码中能看到的属性和他们的值</li>
+<li><strong>对齐填充字节（Padding）</strong>：因为JVM要求java的对象占的内存大小应该是8bit的倍数，所以后面有几个字节用于把对象的大小补齐至 8bit 的倍数，没有特别的功能</li>
+</ul>
+<p>而 Java 的对象头由以下三部分组成：</p>
+<ul>
+<li><p><strong>Mark Word</strong></p>
+</li>
+<li><p><strong>指向类指针</strong>：该指针在32位JVM中的长度是32bit，在64位JVM中长度是64bit，Java对象的类数据保存在方法区</p>
+</li>
+<li><p><strong>数组长度（只有数组对象才有）</strong>：该数据在32位和64位JVM中长度都是32bit</p>
+</li>
+</ul>
+<p><strong>Mark Word</strong></p>
+<p>​    HotSpot 虚拟机的对象头(Object Header)包括两部分信息，第一部分用于存储对象自身的运行时数据， 如哈希码（HashCode）、GC分代年龄、锁状态标志、线程持有的锁、偏向线程ID、偏向时间戳等等，这部分数据的长度在32位和64位的虚拟机（暂不考虑开启压缩指针的场景）中分别为32个和64个Bits，官方称它为“Mark Word”。</p>
+<p>​    Mark Word在不同的锁状态下存储的内容不同，在32位JVM中是这么存的：</p>
+<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403222817_yzicd8.png" alt="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403222817_yzicd8.png"></p>
+<p>​    <strong>而当某个对象被 synchronized 关键字当成同步锁时，围绕这个锁的一系列操作都和 Mark Word有关。</strong></p>
+<h3 id="锁升级的过程"><a href="#锁升级的过程" class="headerlink" title="锁升级的过程"></a>锁升级的过程</h3><p>​    为什么要介绍对象头和 Mark Word 这两个东西呢？synchronized 又是怎么和 Mark Word 有关的呢？</p>
+<p>​    其实从上面的图里可以看出，Mark Word 里是存储了同步锁相关的信息，当我们使用了 synchronized 之后，<strong>HotSpot 的实现流程如下</strong>：</p>
+<ol>
+<li>当一个对象没有被当成锁时（即synchronized( Object )里的这个玩意），它就是一个普通的对象，即上图中的无锁的状态</li>
+</ol>
+<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223619_laxi78.png" alt="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223619_laxi78.png"></p>
+<ol start="2">
+<li>当对象被当作同步锁并有一个线程A抢到了改锁时，锁标志位不变，但是否偏向锁改为1，前23位记录抢到锁的线程id，表示进入偏向锁状态</li>
+</ol>
+<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223636_qdjqvw.png" alt="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223636_qdjqvw.png"></p>
+<ol start="3">
+<li>当线程A再次试图获取锁的时候，JVM发现同步锁对象的标志位是01，且是偏向锁状态，然后访问 Mark Word 中记录的线程ID，判断也是线程A自己的ID，表示线程A已经获得了这个偏向锁，可以执行同步锁的代码</li>
+<li>当线程B试图获得这个锁时（此时线程A仍未释放锁），JVM发现同步锁处于偏向状态，然后访问 Mark Word 中记录的线程ID，判断记录的线程ID不是自己的ID。此时线程B会先用 CAS 操作试图获得锁。如果抢锁成功，就把 Mark Word 中的锁标志位改成 00，可以执行同步锁代码。如果保存失败，表示抢锁失败，竞争太激烈，继续执行步骤6</li>
+</ol>
+<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223654_p8svhe.png" alt="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223654_p8svhe.png"></p>
+<ol start="5">
+<li>偏向锁状态抢锁失败，代表当前锁有一定的竞争，偏向锁将升级为轻量级锁。JVM会在当前线程栈中开辟一块单独的空间，里面保存指向对象锁 Mark Word 的指针，同时在对象锁 Mark Word 中保存指向这片空间的指针。上述两个保存操作都是CAS操作，如果保存成功，代表线程抢到了同步锁，就把Mark Word中的锁标志位改成00，可以执行同步锁代码。如果保存失败，表示抢锁失败，竞争太激烈，继续执行步骤6。</li>
+</ol>
+<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223711_ph2uki.png" alt="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223711_ph2uki.png"></p>
+<ol start="6">
+<li>轻量级锁抢锁失败，JVM会使用自旋锁，自旋锁不是一个锁状态，只是代表不断的重试，尝试抢锁。从 JDK1.7 开始，自旋锁默认启用，自旋次数由JVM决定。如果抢锁成功则执行同步锁代码，如果失败则继续执行步骤7</li>
+<li>自选锁重试之后如果抢锁依然失败，同步锁会升级至重量级锁，锁标志位改为10。在这个状态下，未抢到锁的线程都会被阻塞。重量级锁就是去操作系统那里去申请资源。</li>
+</ol>
+<p><img src="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223725_tf4nef.png" alt="https://res.cloudinary.com/chavy/image/upload/v1585925791/%E5%BE%AE%E4%BF%A1%E6%88%AA%E5%9B%BE_20200403223725_tf4nef.png"></p>
+<blockquote>
+<p>以上就是锁升级的过程，需要注意的是并不是说CAS的效率就一定比系统锁要高，这个要区分实际情况：</p>
+<ul>
+<li>执行时间短（加锁代码），线程数少，用自旋</li>
+<li>执行时间长，线程数多，用系统锁</li>
+</ul>
+<p>—-引自《马士兵多线程高并发》</p>
+</blockquote>
+<h3 id="CAS"><a href="#CAS" class="headerlink" title="CAS"></a>CAS</h3><p>​    这里提到了 CAS ，就简单的介绍下。<strong>CAS算法（Compare And Swap），是一种有名的无锁算法，能够在不使用锁的情况下实现多线程之间的变量同步。</strong>它的核心思想就是在进行修改数据的时候，为了保证数据的一致性，但是不采用加锁的同步机制，而是通过对比该数据的预期值和实际值，来判断做修改的时候是否有其他线程修改了这个数据的值。</p>
+<p>​    我们在学习乐观锁的时候了解到了 CAS 算法是实现乐观锁的一个方式，而 CAS算法中又涉及到了自旋锁。在 CAS 算法中，不断比较需要读写的值 V 和 进行比较的值A，这个操作就是一个自旋操作，即不断的重试。同理，自选锁就是不断地循环等待，不断地判断锁是否能够被成功获取，直到获取到锁才会退出循环。</p>
+<p>​    关于 CAS 的具体内容，有兴趣可以自行搜索学习，这里就不多讲了（<del>其实是我写到这里的时候还没看多少 CAS 的东西</del>）。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>​    关于 synchronized 关键字，其实现同步的原理是采用了 Monitor 机制，对选定的代码块或者方法进行限制，并且通过通知机制去操作管理其他线程。另外为了提高性能和效率，synchronized 引入了锁升级的概念，对对象头中的 Mark Word 标记区域进行锁的标志和判断，一步步的将从偏向锁升级到重量级锁，若获取到锁的线程就无需继续升级，从而减少系统调用申请的消耗。</p>
+
+    </article>
+    <!-- license  -->
+    
+        <div class="license-wrapper">
+            <p>Author：<a href="http://ChavyX.github.io">Chavy</a>
+            <p>原文链接：<a href="http://chavyx.github.io/2020/04/03/%E6%B5%85%E6%9E%90synchronized%E5%8E%9F%E7%90%86/">http://chavyx.github.io/2020/04/03/%E6%B5%85%E6%9E%90synchronized%E5%8E%9F%E7%90%86/</a>
+            <p>发表日期：<a href="http://chavyx.github.io/2020/04/03/%E6%B5%85%E6%9E%90synchronized%E5%8E%9F%E7%90%86/">April 3rd 2020, 11:03:37 pm</a>
+            <p>更新日期：<a href="http://chavyx.github.io/2020/04/03/%E6%B5%85%E6%9E%90synchronized%E5%8E%9F%E7%90%86/">April 3rd 2020, 11:07:18 pm</a>
+            <p>版权声明：本文版权属于作者，未授权禁止商用</p>
+        </div>
+    
+    <!-- paginator  -->
+    <ul class="post-paginator">
+        <li class="next">
+            
+        </li>
+        <li class="previous">
+            
+                <div class="prevSlogan">Previous Post</div>
+                <a href= "/2020/03/31/%E6%B5%85%E6%9E%90Redis%E7%9A%84IO%E6%A8%A1%E5%9E%8B/" title= "浅析Redis的IO模型">
+                    <div class="prevTitle">浅析Redis的IO模型</div>
+                </a>
+            
+        </li>
+    </ul>
+    <!-- 评论插件 -->
+    <!-- 来必力City版安装代码 -->
+
+    <div id="lv-container" data-id="city" data-uid= https://livere.com/>
+        <script type="text/javascript">
+            (function (d, s) {
+                var j, e = d.getElementsByTagName(s)[0];
+                if (typeof LivereTower === 'function') { return; }
+                j = d.createElement(s);
+                j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+                j.async = true;
+
+                e.parentNode.insertBefore(j, e);
+            })(document, 'script');
+        </script>
+        <noscript>为正常使用来必力评论功能请激活JavaScript</noscript>
+    </div>
+
+<!-- City版安装代码已完成 -->
+    
+    
+    <!-- gitalk评论 -->
+
+    <!-- utteranc评论 -->
+
+    <!-- partial('_partial/comment/changyan') -->
+    <!--PC版-->
+
+
+    
+    
+
+    <!-- 评论 -->
+</main>
+            <!-- profile -->
+            
+        </div>
+        <footer class="footer footer-unloaded">
+    <!-- social  -->
+    
+    <div class="social">
+        
+    
+        
+            
+                <a href="mailto:1175450568@qq.com" class="iconfont-archer email" title=email ></a>
+            
+        
+    
+        
+            
+                <a href="//github.com/ChavyX" class="iconfont-archer github" target="_blank" title=github></a>
+            
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+            
+                <a href="https://space.bilibili.com/35216460" class="iconfont-archer bilibili" target="_blank" title=bilibili></a>
+            
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+    </div>
+    
+    <!-- powered by Hexo  -->
+    <div class="copyright">
+        <span id="hexo-power">Powered by <a href="https://hexo.io/" target="_blank">Hexo</a></span><span class="iconfont-archer power">&#xe635;</span><span id="theme-info">theme <a href="https://github.com/fi3ework/hexo-theme-archer" target="_blank">Archer</a></span>
+    </div>
+    <!-- 不蒜子  -->
+    
+    <div class="busuanzi-container">
+    
+     
+    <span id="busuanzi_container_site_pv">PV: <span id="busuanzi_value_site_pv"></span> :)</span>
+    
+    </div>
+    
+</footer>
+    </div>
+    <!-- toc -->
+    
+    <div class="toc-wrapper" style=
+    
+
+
+
+
+
+
+
+top:50vh;
+
+    >
+        <div class="toc-catalog">
+            <span class="iconfont-archer catalog-icon">&#xe613;</span><span>CATALOG</span>
+        </div>
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Monitor-机制"><span class="toc-number">1.</span> <span class="toc-text">Monitor 机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#简述"><span class="toc-number">1.1.</span> <span class="toc-text">简述</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Java-对-Monitor的支持"><span class="toc-number">1.2.</span> <span class="toc-text">Java 对 Monitor的支持</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#锁升级"><span class="toc-number">2.</span> <span class="toc-text">锁升级</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#对象头"><span class="toc-number">2.1.</span> <span class="toc-text">对象头</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#锁升级的过程"><span class="toc-number">2.2.</span> <span class="toc-text">锁升级的过程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CAS"><span class="toc-number">2.3.</span> <span class="toc-text">CAS</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+    </div>
+    
+    <div class="back-top iconfont-archer">&#xe639;</div>
+    <div class="sidebar sidebar-hide">
+    <ul class="sidebar-tabs sidebar-tabs-active-0">
+        <li class="sidebar-tab-archives"><span class="iconfont-archer">&#xe67d;</span><span class="tab-name">Archive</span></li>
+        <li class="sidebar-tab-tags"><span class="iconfont-archer">&#xe61b;</span><span class="tab-name">Tag</span></li>
+        <li class="sidebar-tab-categories"><span class="iconfont-archer">&#xe666;</span><span class="tab-name">Cate</span></li>
+    </ul>
+    <div class="sidebar-content sidebar-content-show-archive">
+          <div class="sidebar-panel-archives">
+    <!-- 在ejs中将archive按照时间排序 -->
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <div class="total-and-search">
+        <div class="total-archive">
+        Total : 3
+        </div>
+        <!-- search  -->
+        
+    </div>
+    
+    <div class="post-archive">
+    
+    
+    
+    
+    <div class="archive-year"> 2020 </div>
+    <ul class="year-list">
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">04/03</span><a class="archive-post-title" href= "/2020/04/03/%E6%B5%85%E6%9E%90synchronized%E5%8E%9F%E7%90%86/" >浅析synchronized原理</a>
+        </li>
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/31</span><a class="archive-post-title" href= "/2020/03/31/%E6%B5%85%E6%9E%90Redis%E7%9A%84IO%E6%A8%A1%E5%9E%8B/" >浅析Redis的IO模型</a>
+        </li>
+    
+    
+        <li class="archive-post-item">
+            <span class="archive-post-date">03/29</span><a class="archive-post-title" href= "/2020/03/29/%E6%88%91%E4%BA%86%E8%A7%A3%E7%9A%84Java/" >我了解的Java</a>
+        </li>
+    
+    </div>
+  </div>
+        <div class="sidebar-panel-tags">
+    <div class="sidebar-tags-name">
+    
+        <span class="sidebar-tag-name" data-tags="闲谈"><span class="iconfont-archer">&#xe606;</span>闲谈</span>
+    
+        <span class="sidebar-tag-name" data-tags="Redis"><span class="iconfont-archer">&#xe606;</span>Redis</span>
+    
+        <span class="sidebar-tag-name" data-tags="并发"><span class="iconfont-archer">&#xe606;</span>并发</span>
+    
+    </div>
+    <div class="iconfont-archer sidebar-tags-empty">&#xe678;</div>
+    <div class="tag-load-fail" style="display: none; color: #ccc; font-size: 0.6rem;">
+    缺失模块。<br/>
+    1、请确保node版本大于6.2<br/>
+    2、在博客根目录（注意不是archer根目录）执行以下命令：<br/>
+    <span style="color: #f75357; font-size: 1rem; line-height: 2rem;">npm i hexo-generator-json-content --save</span><br/>
+    3、在根目录_config.yml里添加配置：
+    <pre style="color: #787878; font-size: 0.6rem;">
+jsonContent:
+  meta: false
+  pages: false
+  posts:
+    title: true
+    date: true
+    path: true
+    text: false
+    raw: false
+    content: false
+    slug: false
+    updated: false
+    comments: false
+    link: false
+    permalink: false
+    excerpt: false
+    categories: true
+    tags: true</pre>
+    </div> 
+    <div class="sidebar-tags-list"></div>
+</div>
+        <div class="sidebar-panel-categories">
+    <div class="sidebar-categories-name">
+    
+    </div>
+    <div class="iconfont-archer sidebar-categories-empty">&#xe678;</div>
+    <div class="sidebar-categories-list"></div>
+</div>
+    </div>
+</div> 
+    <script>
+    var siteMeta = {
+        root: "/",
+        author: "Chavy"
+    }
+</script>
+    <!-- CDN failover -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
+    <script type="text/javascript">
+        if (typeof window.$ === 'undefined')
+        {
+            console.warn('jquery load from jsdelivr failed, will load local script')
+            document.write('<script src="/lib/jquery.min.js">\x3C/script>')
+        }
+    </script>
+    <script src="/scripts/main.js"></script>
+    <!-- algolia -->
+    
+    <!-- busuanzi  -->
+    
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    
+    <!-- CNZZ  -->
+    
+    </div>
+    <!-- async load share.js -->
+    
+        <script src="/scripts/share.js" async></script>    
+     
+    </body>
+</html>
+
+
